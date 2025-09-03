@@ -13,12 +13,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 
 @Service
 @RequiredArgsConstructor
@@ -33,39 +36,74 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse signup(UserDto userDto) {
 
-        User user = userRepository.findByEmail(userDto.getEmail())
-                .orElseThrow(()-> new UserException("User already registered with email: " + userDto.getEmail()));
-
-        if (userDto.getRole().equals(UserRole.ROLE_ADMIN)) {
-            throw new UserException("Role not allowed");
+        // Перевірка, чи вже існує користувач
+        if (userRepository.findByEmail(userDto.getEmail()).isPresent()) {
+            throw new UserException("User already registered with email: " + userDto.getEmail());
         }
-        User newUser = new User();
-        newUser.setFullName(userDto.getFullName());
-        newUser.setEmail(userDto.getEmail());
-        newUser.setPhone(userDto.getPhone());
-        newUser.setPassword(passwordEncoder.encode(userDto.getPassword()));
-        newUser.setRole(userDto.getRole());
-        newUser.setLastLogin(LocalDateTime.now());
-        newUser.setCreatedAt(LocalDateTime.now());
-        newUser.setUpdatedAt(LocalDateTime.now());
 
-        User savedUser = userRepository.save(newUser);
+            if (userDto.getRole().equals(UserRole.ROLE_ADMIN)) {
+                throw new UserException("Role not allowed");
+            }
+            User newUser = new User();
+            newUser.setFullName(userDto.getFullName());
+            newUser.setEmail(userDto.getEmail());
+            newUser.setPhone(userDto.getPhone());
+            newUser.setPassword(passwordEncoder.encode(userDto.getPassword()));
+            newUser.setRole(userDto.getRole());
+            newUser.setLastLogin(LocalDateTime.now());
+            newUser.setCreatedAt(LocalDateTime.now());
+            newUser.setUpdatedAt(LocalDateTime.now());
 
-        Authentication authentication =
-                new UsernamePasswordAuthenticationToken(userDto.getEmail(), userDto.getPassword());
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtProvider.generateToken(authentication);
+            User savedUser = userRepository.save(newUser);
 
-        AuthResponse authResponse = new AuthResponse();
-        authResponse.setJwt(jwt);
-        authResponse.setMessage("User registered successfully");
-        authResponse.setUser(UserMapper.toDTO(savedUser));
+            Authentication authentication =
+                    new UsernamePasswordAuthenticationToken(userDto.getEmail(), userDto.getPassword());
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = jwtProvider.generateToken(authentication);
 
-        return authResponse;
-    }
+            AuthResponse authResponse = new AuthResponse();
+            authResponse.setJwt(jwt);
+            authResponse.setMessage("User registered successfully");
+            authResponse.setUser(UserMapper.toDTO(savedUser));
+
+            return authResponse;
+        }
+
 
     @Override
     public AuthResponse login(UserDto userDto) {
-        return null;
+        String email = userDto.getEmail();
+        String password = userDto.getPassword();
+        Authentication authentication = authenticate(email, password);
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
+
+        String role = authorities.iterator().next().getAuthority();
+        String jwt = jwtProvider.generateToken(authentication);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserException("User not found with email: " + email));
+        user.setLastLogin(LocalDateTime.now());
+
+        userRepository.save(user);
+        log.info("User logged in: {}, Role: {}", email, role);
+
+        AuthResponse authResponse = new AuthResponse();
+        authResponse.setJwt(jwt);
+        authResponse.setMessage("User logged in successfully");
+        authResponse.setUser(UserMapper.toDTO(user));
+        return authResponse;
+    }
+
+    private Authentication authenticate(String email, String password) {
+        UserDetails userDetails = customerUserImplementation.loadUserByUsername(email);
+        if (userDetails == null || !passwordEncoder.matches(password, userDetails.getPassword())) {
+           throw new UserException("Invalid email or password");
+        }
+        return new UsernamePasswordAuthenticationToken(
+                userDetails.getUsername(),
+                userDetails.getPassword(),
+                userDetails.getAuthorities()
+        );
     }
 }
