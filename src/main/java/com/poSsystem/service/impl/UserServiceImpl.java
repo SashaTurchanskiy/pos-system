@@ -22,10 +22,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User getUserFromToken(String token) {
-
-        String email = jwtProvider.getEmailFormToken(token);
-        log.info("Email from token: {}", email);
-            User user = userRepository.findByEmail(email).orElse(null);
+        String email = jwtProvider.getEmailFromToken(token);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserException("User with email " + email + " not found"));;
             log.info("User from token: {}", user);
         return user;
     }

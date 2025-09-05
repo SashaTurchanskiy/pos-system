@@ -32,7 +32,7 @@ public class JwtProvider {
                 .compact();
     }
 
-    public String getEmailFormToken(String jwt){
+    public String getEmailFromToken(String jwt){
         jwt = jwt.substring(7);
         Claims claims = Jwts.parser()
                 .verifyWith(key)
