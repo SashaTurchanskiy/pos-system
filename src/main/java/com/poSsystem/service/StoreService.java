@@ -13,6 +13,6 @@ public interface StoreService {
     List<StoreDto> getAllStores();
     Store getStoreByAdmin();
     StoreDto updateStore(Long id, StoreDto storeDto);
-    StoreDto deleteStore(Long id);
+    void deleteStore(Long id);
     StoreDto getStoreByEmployee();
 }
