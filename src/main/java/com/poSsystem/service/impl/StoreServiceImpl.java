@@ -1,5 +1,6 @@
 package com.poSsystem.service.impl;
 
+import com.poSsystem.domain.StoreStatus;
 import com.poSsystem.exceptions.UserException;
 import com.poSsystem.mapper.StoreMapper;
 import com.poSsystem.model.Store;
@@ -86,5 +87,14 @@ public class StoreServiceImpl implements StoreService {
             throw new UserException("U don`t have permission to do this operation");
         }
         return StoreMapper.toDTO(employee.getStore());
+    }
+
+    @Override
+    public StoreDto moderateStore(Long id, StoreStatus status) {
+        Store store = storeRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Store with id " + id + " not found"));
+        store.setStatus(status);
+        Store updateStore = storeRepository.save(store);
+        return StoreMapper.toDTO(updateStore);
     }
 }
