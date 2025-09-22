@@ -73,7 +73,7 @@ public class CategoryServiceImpl implements CategoryService {
         boolean isManager = user.getRole().equals(UserRole.ROLE_STORE_MANAGER);
         boolean isSameStore = user.equals(store.getStoreAdmin());
 
-        if (!(isAdmin && isSameStore) && !isManager){
+        if (!isAdmin && !isManager && !isSameStore) {
             throw new Exception("You don't have permission to perform this action");
         }
 

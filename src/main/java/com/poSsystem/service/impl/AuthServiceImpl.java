@@ -11,12 +11,12 @@ import com.poSsystem.repository.UserRepository;
 import com.poSsystem.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -36,39 +36,53 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse signup(UserDto userDto) {
 
-        // Перевірка, чи вже існує користувач
         if (userRepository.findByEmail(userDto.getEmail()).isPresent()) {
             throw new UserException("User already registered with email: " + userDto.getEmail());
         }
 
-            if (userDto.getRole().equals(UserRole.ROLE_ADMIN)) {
-                throw new UserException("Role not allowed");
-            }
-            User newUser = new User();
-            newUser.setFullName(userDto.getFullName());
-            newUser.setEmail(userDto.getEmail());
-            newUser.setPhone(userDto.getPhone());
-            newUser.setPassword(passwordEncoder.encode(userDto.getPassword()));
-            newUser.setRole(userDto.getRole());
-            newUser.setLastLogin(LocalDateTime.now());
-            newUser.setCreatedAt(LocalDateTime.now());
-            newUser.setUpdatedAt(LocalDateTime.now());
+        boolean wantsAdmin = userDto.getRole() == UserRole.ROLE_ADMIN;
 
-            User savedUser = userRepository.save(newUser);
+        Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
+        boolean currentAuthValid = currentAuth != null
+                && currentAuth.isAuthenticated()
+                && !(currentAuth instanceof AnonymousAuthenticationToken);
 
-            Authentication authentication =
-                    new UsernamePasswordAuthenticationToken(userDto.getEmail(), userDto.getPassword());
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            String jwt = jwtProvider.generateToken(authentication);
+        boolean currentIsAdmin = currentAuthValid && currentAuth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals(UserRole.ROLE_ADMIN.name()) || a.getAuthority().equals("ROLE_ADMIN"));
 
-            AuthResponse authResponse = new AuthResponse();
-            authResponse.setJwt(jwt);
-            authResponse.setMessage("User registered successfully");
-            authResponse.setUser(UserMapper.toDTO(savedUser));
+        boolean noUsers = userRepository.count() == 0; // allow first user to be admin
 
-            return authResponse;
-        }
+//        if (wantsAdmin && !(currentIsAdmin || noUsers)) {
+//            throw new UserException("Role not allowed");
+//        }
 
+        User newUser = new User();
+        newUser.setFullName(userDto.getFullName());
+        newUser.setEmail(userDto.getEmail());
+        newUser.setPhone(userDto.getPhone());
+        newUser.setPassword(passwordEncoder.encode(userDto.getPassword()));
+        newUser.setRole(userDto.getRole());
+        newUser.setLastLogin(LocalDateTime.now());
+        newUser.setCreatedAt(LocalDateTime.now());
+        newUser.setUpdatedAt(LocalDateTime.now());
+
+        User savedUser = userRepository.save(newUser);
+
+
+        UserDetails userDetails = customerUserImplementation.loadUserByUsername(savedUser.getEmail());
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities()
+        );
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        String jwt = jwtProvider.generateToken(authentication);
+
+        AuthResponse authResponse = new AuthResponse();
+        authResponse.setJwt(jwt);
+        authResponse.setMessage("User registered successfully");
+        authResponse.setUser(UserMapper.toDTO(savedUser));
+
+        return authResponse;
+    }
 
     @Override
     public AuthResponse login(UserDto userDto) {
@@ -98,7 +112,7 @@ public class AuthServiceImpl implements AuthService {
     private Authentication authenticate(String email, String password) {
         UserDetails userDetails = customerUserImplementation.loadUserByUsername(email);
         if (userDetails == null || !passwordEncoder.matches(password, userDetails.getPassword())) {
-           throw new UserException("Invalid email or password");
+            throw new UserException("Invalid email or password");
         }
         return new UsernamePasswordAuthenticationToken(
                 userDetails.getUsername(),
