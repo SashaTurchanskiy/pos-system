@@ -10,6 +10,6 @@ public interface BranchService {
     BranchDto createBranch(BranchDto branchDto, User user);
     BranchDto updateBranch(Long id, BranchDto branchDto, User user);
     BranchDto getBranchById(Long id, User user);
-    BranchDto deleteBranch(Long id);
+    void deleteBranch(Long id);
     List<BranchDto> getAllBranchesByStoreId(Long storeId);
 }
