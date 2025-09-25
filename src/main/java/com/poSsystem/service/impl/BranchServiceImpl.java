@@ -27,17 +27,17 @@ public class BranchServiceImpl implements BranchService {
 
 
     @Override
-    public BranchDto createBranch(BranchDto branchDto, User user) {
+    public BranchDto createBranch(BranchDto branchDto) {
         User currentUser = userService.getCurrentUser();
         Store store = storeRepository.findByStoreAdminId(currentUser.getId())
-                .orElseThrow(() -> new RuntimeException("Store not found for the current user"));
+                .orElseThrow(() -> new RuntimeException("Store not found with id: " + branchDto.getId()));
         Branch branch = BranchMapper.toEntity(branchDto);
         Branch savedBranch = branchRepository.save(branch);
         return BranchMapper.toDTO(savedBranch);
     }
 
     @Override
-    public BranchDto updateBranch(Long id, BranchDto branchDto, User user) {
+    public BranchDto updateBranch(Long id, BranchDto branchDto) {
         Branch existingBranch = branchRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Branch not found with id: " + id));
 
@@ -56,7 +56,7 @@ public class BranchServiceImpl implements BranchService {
     }
 
     @Override
-    public BranchDto getBranchById(Long id, User user) {
+    public BranchDto getBranchById(Long id) {
         Branch existingBranch = branchRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Branch not found with id: " + id));
         return BranchMapper.toDTO(existingBranch);
