@@ -12,6 +12,7 @@ import com.poSsystem.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,13 +27,18 @@ public class InventoryServiceImpl implements InventoryService {
     @Override
     public InventoryDto createInventory(InventoryDto inventoryDto) throws Exception {
 
-        Branch branch = branchRepository.findById(inventoryDto.getId()).orElseThrow(
+        Branch branch = branchRepository.findById(inventoryDto.getBranchId()).orElseThrow(
                 ()-> new Exception("Branch not found")
         );
         Product product = productRepository.findById(inventoryDto.getProductId()).orElseThrow(
                 ()-> new Exception("Product not found")
         );
-        Inventory inventory = InventoryMapper.toEntity(inventoryDto, branch, product);
+
+        Inventory inventory = new Inventory();
+        inventory.setBranch(branch);
+        inventory.setProduct(product);
+        inventory.setQuantity(inventoryDto.getQuantity());
+        inventory.setLastUpdated(LocalDateTime.now());
         Inventory savedInventory = inventoryRepository.save(inventory);
         return InventoryMapper.toDto(savedInventory);
     }

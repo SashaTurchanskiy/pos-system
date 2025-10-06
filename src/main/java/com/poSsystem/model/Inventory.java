@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.LocalDateTime;
 
@@ -26,6 +28,8 @@ public class Inventory {
     private Product product;
     @Column(nullable = false)
     private Integer quantity;
+    @LastModifiedDate
+    @Column(name = "last_updated")
     private LocalDateTime lastUpdated;
     @PrePersist
     @PreUpdate

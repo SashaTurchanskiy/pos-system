@@ -10,9 +10,11 @@ public class InventoryMapper {
         return InventoryDto.builder()
                 .id(inventory.getId())
                 .branchId(inventory.getBranch().getId())
+                .branch(BranchMapper.toDTO(inventory.getBranch())) // додано
                 .productId(inventory.getProduct().getId())
                 .product(ProductMapper.toDto(inventory.getProduct()))
                 .quantity(inventory.getQuantity())
+                .lastUpdated(inventory.getLastUpdated()) // додано
                 .build();
     }
     public static Inventory toEntity(InventoryDto inventoryDto, Branch branch, Product product){
