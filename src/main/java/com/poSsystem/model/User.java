@@ -32,6 +32,9 @@ public class User {
     @ManyToOne
     private Store store;
 
+    @ManyToOne
+    private Branch branch;
+
     @Column(nullable = false)
     private String password;
 
